@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Функція для перевірки автентифікації
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Функція для перевірки чи це власник документа
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Правила для колекції витрат (expenses)
+    match /expenses/{expenseId} {
+      // Дозволити читання тільки власних витрат
+      allow read: if isAuthenticated() && 
+                    resource.data.userId == request.auth.uid;
+      
+      // Дозволити створення тільки з власним userId
+      allow create: if isAuthenticated() && 
+                     request.resource.data.userId == request.auth.uid &&
+                     request.resource.data.keys().hasAll([
+                       'userId', 'category', 'description', 
+                       'amount', 'date', 'colorValue'
+                     ]) &&
+                     request.resource.data.amount is number &&
+                     request.resource.data.amount > 0;
+      
+      // Дозволити оновлення тільки власних витрат
+      allow update: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid &&
+                     request.resource.data.userId == request.auth.uid;
+      
+      // Дозволити видалення тільки власних витрат
+      allow delete: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+    }
+    
+    // Правила для налаштувань користувача (userSettings)
+    match /userSettings/{userId} {
+      // Дозволити читання тільки власних налаштувань
+      allow read: if isOwner(userId);
+      
+      // Дозволити створення тільки власних налаштувань
+      allow create: if isOwner(userId) &&
+                     request.resource.data.userId == userId;
+      
+      // Дозволити оновлення тільки власних налаштувань
+      allow update: if isOwner(userId) &&
+                     request.resource.data.userId == userId;
+      
+      // Дозволити видалення тільки власних налаштувань
+      allow delete: if isOwner(userId);
+    }
+    
+    // Заборонити доступ до інших колекцій
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

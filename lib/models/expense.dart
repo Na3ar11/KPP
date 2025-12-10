@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+//Абоба 
 class Expense {
   final String id;
-  final String userId; // Додано для багатокористувацької системи
+  final String userId; 
   final String icon;
   final String category;
   final String description;
   final double amount;
   final Color color;
   final DateTime date;
-  final DateTime createdAt; // Коли створено
-  final DateTime updatedAt; // Коли оновлено
+  final DateTime createdAt; 
+  final DateTime updatedAt; 
 
   Expense({
     required this.id,
@@ -27,7 +27,6 @@ class Expense {
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
-  // Копіювання з можливістю зміни параметрів
   Expense copyWith({
     String? id,
     String? userId,
@@ -50,11 +49,11 @@ class Expense {
       color: color ?? this.color,
       date: date ?? this.date,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? DateTime.now(), // Завжди оновлюємо час редагування
+      updatedAt: updatedAt ?? DateTime.now(), 
     );
   }
 
-  // Конвертація в JSON для локального використання
+  
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -90,7 +89,6 @@ class Expense {
     );
   }
 
-  // Конвертація в Firestore Document
   Map<String, dynamic> toFirestore() {
     return {
       'userId': userId,
@@ -98,19 +96,18 @@ class Expense {
       'category': category,
       'description': description,
       'amount': amount,
-      'colorValue': color.value, // Зберігаємо як int
-      'date': Timestamp.fromDate(date), // Firestore Timestamp
+      'colorValue': color.value, 
+      'date': Timestamp.fromDate(date), 
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
 
-  // Створення з Firestore Document
   factory Expense.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     
     return Expense(
-      id: doc.id, // Використовуємо ID документа
+      id: doc.id, 
       userId: data['userId'] as String,
       icon: data['icon'] as String,
       category: data['category'] as String,
@@ -127,7 +124,6 @@ class Expense {
     );
   }
 
-  // Створення з Firestore QueryDocumentSnapshot (для queries)
   factory Expense.fromFirestoreQuery(QueryDocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     

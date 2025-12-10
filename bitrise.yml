@@ -96,6 +96,37 @@ workflows:
         is_always_run: true
     
     - script@1:
+        title: Setup Android Keystore
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -e
+            echo "Setting up Android keystore for signing..."
+            
+            # Decode keystore from base64 Secret
+            if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+              echo "ERROR: ANDROID_KEYSTORE_BASE64 not found in Secrets!"
+              echo "Add it to Bitrise > Workflow Editor > Secrets"
+              exit 1
+            fi
+            
+            # Create keystore file from base64
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+            echo "SUCCESS: Keystore file created"
+            
+            # Create key.properties file
+            cat > android/key.properties <<EOF
+            storePassword=${KEYSTORE_PASSWORD}
+            keyPassword=${KEY_PASSWORD}
+            keyAlias=${KEY_ALIAS}
+            storeFile=upload-keystore.jks
+            EOF
+            
+            echo "SUCCESS: key.properties created"
+            echo "Keystore SHA-1: 13:75:AE:52:C9:70:08:6E:88:7F:D0:84:68:7C:6B:DD:78:EB:6E:EF"
+        is_always_run: true
+    
+    - script@1:
         title: Build Android APK (Release)
         inputs:
         - content: |-

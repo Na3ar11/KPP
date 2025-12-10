@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "98211696497-roh7ihisfhloh50fdf76ro10ddg21a4c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tracker_costs",
+            "certificate_hash": "1375ae52c970086e887fd084687c6bdd78eb6eef"
+          }
+        },
+        {
           "client_id": "98211696497-br9tspulpbgso5sr3dredgoh8rakctva.apps.googleusercontent.com",
           "client_type": 3
         }

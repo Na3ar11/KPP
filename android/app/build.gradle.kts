@@ -16,6 +16,12 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
 }
 
+// Check for Bitrise environment variables
+val bitriseKeystore = System.getenv("BITRISEIO_ANDROID_KEYSTORE_URL")
+val bitriseKeystorePassword = System.getenv("BITRISEIO_ANDROID_KEYSTORE_PASSWORD")
+val bitriseKeyAlias = System.getenv("BITRISEIO_ANDROID_KEYSTORE_ALIAS")
+val bitriseKeyPassword = System.getenv("BITRISEIO_ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD")
+
 android {
     namespace = "com.example.tracker_costs"
     compileSdk = flutter.compileSdkVersion
@@ -33,7 +39,14 @@ android {
     // Add signing configs
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
+            if (bitriseKeystore != null) {
+                // Use Bitrise keystore
+                storeFile = file(bitriseKeystore)
+                storePassword = bitriseKeystorePassword
+                keyAlias = bitriseKeyAlias
+                keyPassword = bitriseKeyPassword
+            } else if (keystorePropertiesFile.exists()) {
+                // Use local keystore
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storeFile = file(keystoreProperties["storeFile"] as String)
@@ -55,7 +68,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            signingConfig = if (bitriseKeystore != null || keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")

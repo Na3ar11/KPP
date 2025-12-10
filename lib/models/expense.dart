@@ -12,7 +12,7 @@ class Expense {
   final DateTime date;
   final DateTime createdAt; 
   final DateTime updatedAt; 
-
+// Free курапов
   Expense({
     required this.id,
     required this.userId,

@@ -1,42 +1,34 @@
 ---
-format_version: '23'
+format_version: '13'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
-
 project_type: flutter
 
-# Trigger configuration
-triggers:
-  push:
-    - branch: main
-      workflow: android_firebase
-  pull_request:
-    - source_branch: "*"
-      workflow: android_firebase
+app:
+  envs:
+  - BITRISE_FLUTTER_PROJECT_LOCATION: "."
+    opts:
+      is_expand: false
+  - BITRISE_PROJECT_PATH: android/build.gradle.kts
+    opts:
+      is_expand: false
 
-# Workflows
 workflows:
-  
   android_firebase:
     description: Build Android APK for Tracker Costs with Firebase App Distribution
     steps:
     
-    # 1. Activate SSH key for Git
     - activate-ssh-key@4:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
     
-    # 2. Clone repository
     - git-clone@8: {}
     
-    # 3. Install Flutter
     - flutter-installer@0:
         inputs:
-        - version: 3.38.4
+        - version: stable
         - is_update: 'false'
     
-    # 4. Cache Dart packages
     - restore-dart-cache@2: {}
     
-    # 5. Flutter pub get
     - script@1:
         title: Flutter packages get
         inputs:
@@ -47,7 +39,6 @@ workflows:
             flutter pub get
             echo "Dependencies installed"
     
-    # 6. Flutter analyze (code check)
     - script@1:
         title: Flutter analyze
         inputs:
@@ -58,7 +49,6 @@ workflows:
             flutter analyze || true
         is_always_run: false
     
-    # 7. Run tests (optional)
     - script@1:
         title: Run Flutter tests
         inputs:
@@ -69,79 +59,73 @@ workflows:
             flutter test || echo "WARNING: No tests found or tests failed"
         is_always_run: false
     
-    # 8. Save Dart cache
     - save-dart-cache@1: {}
     
-    # 9. Decode Firebase google-services.json (if stored in Secrets)
     - script@1:
         title: Setup Firebase Configuration
         inputs:
         - content: |-
             #!/usr/bin/env bash
             set -e
-            
             echo "Setting up Firebase configuration..."
             
             # If google-services.json is base64 encoded in Secrets
             if [ ! -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-                echo "Decoding google-services.json from Secrets..."
-                echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > android/app/google-services.json
-                echo "SUCCESS: google-services.json created from Secrets"
+              echo "Decoding google-services.json from Secrets..."
+              echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > android/app/google-services.json
+              echo "SUCCESS: google-services.json created from Secrets"
             else
-                echo "WARNING: Using google-services.json from repository"
+              echo "WARNING: Using google-services.json from repository"
             fi
             
             # Verify file exists
             if [ -f "android/app/google-services.json" ]; then
-                echo "SUCCESS: google-services.json found"
+              echo "SUCCESS: google-services.json found"
             else
-                echo "ERROR: google-services.json NOT found!"
-                exit 1
+              echo "ERROR: google-services.json NOT found!"
+              exit 1
             fi
         is_always_run: true
     
-    # 10. Build Android APK (release)
     - script@1:
         title: Build Android APK (Release)
         inputs:
         - content: |-
             #!/usr/bin/env bash
             set -e
-            
             echo "Building Tracker Costs Android APK in RELEASE mode..."
+            
             flutter build apk --release --no-tree-shake-icons
             
             APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
             
             if [ -f "$APK_PATH" ]; then
-                echo "SUCCESS: APK built successfully!"
-                echo "APK info:"
-                ls -lh "$APK_PATH"
-                
-                # Get APK size
-                APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
-                echo "Size: $APK_SIZE"
-                
-                # Export for Firebase
-                envman add --key ANDROID_APK_PATH --value "$BITRISE_SOURCE_DIR/$APK_PATH"
-                
-                # Copy to deploy dir with version
-                BUILD_NAME="TrackerCosts_v1.0.0_build${BITRISE_BUILD_NUMBER}.apk"
-                cp "$APK_PATH" "$BITRISE_DEPLOY_DIR/$BUILD_NAME"
-                echo "APK copied to artifacts as: $BUILD_NAME"
+              echo "SUCCESS: APK built successfully!"
+              echo "APK info:"
+              ls -lh "$APK_PATH"
+              
+              # Get APK size
+              APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+              echo "Size: $APK_SIZE"
+              
+              # Export for Firebase
+              envman add --key ANDROID_APK_PATH --value "$BITRISE_SOURCE_DIR/$APK_PATH"
+              
+              # Copy to deploy dir with version
+              BUILD_NAME="TrackerCosts_v1.0.0_build${BITRISE_BUILD_NUMBER}.apk"
+              cp "$APK_PATH" "$BITRISE_DEPLOY_DIR/$BUILD_NAME"
+              echo "APK copied to artifacts as: $BUILD_NAME"
             else
-                echo "ERROR: APK not found at $APK_PATH!"
-                exit 1
+              echo "ERROR: APK not found at $APK_PATH!"
+              exit 1
             fi
     
-    # 11. Verify Firebase configuration
     - script@1:
         title: Verify Firebase App ID
         inputs:
         - content: |-
             #!/usr/bin/env bash
             set -e
-            
             echo "Checking Firebase App Distribution configuration..."
             echo "========================================"
             echo "App ID: ${FIREBASE_APP_ID_ANDROID:0:20}..."
@@ -152,29 +136,28 @@ workflows:
             
             # Validate Firebase App ID
             if [ -z "$FIREBASE_APP_ID_ANDROID" ]; then
-                echo "ERROR: FIREBASE_APP_ID_ANDROID is not set!"
-                echo "Please add it in Bitrise Secrets:"
-                echo "1. Go to Bitrise > Workflow Editor > Secrets"
-                echo "2. Add: FIREBASE_APP_ID_ANDROID = 1:98211696497:android:6829066851715285e630d0"
-                exit 1
+              echo "ERROR: FIREBASE_APP_ID_ANDROID is not set!"
+              echo "Please add it in Bitrise Secrets:"
+              echo "1. Go to Bitrise > Workflow Editor > Secrets"
+              echo "2. Add: FIREBASE_APP_ID_ANDROID = 1:98211696497:android:6829066851715285e630d0"
+              exit 1
             fi
             
             # Validate Firebase Token
             if [ -z "$FIREBASE_TOKEN" ]; then
-                echo "ERROR: FIREBASE_TOKEN is not set!"
-                echo "Generate token: firebase login:ci"
-                exit 1
+              echo "ERROR: FIREBASE_TOKEN is not set!"
+              echo "Generate token: firebase login:ci"
+              exit 1
             fi
             
             # Validate APK
             if [ ! -f "$ANDROID_APK_PATH" ]; then
-                echo "ERROR: APK file not found at $ANDROID_APK_PATH"
-                exit 1
+              echo "ERROR: APK file not found at $ANDROID_APK_PATH"
+              exit 1
             fi
             
             echo "SUCCESS: All Firebase configurations are valid"
     
-    # 12. Firebase App Distribution (Android)
     - script@1:
         title: Deploy to Firebase App Distribution
         inputs:
@@ -185,7 +168,7 @@ workflows:
             echo "Deploying Tracker Costs to Firebase App Distribution..."
             echo "========================================"
             echo "APK: $ANDROID_APK_PATH"
-            echo "App ID: 1:98211696497:android:6829066851715285e630d0"
+            echo "App ID: $FIREBASE_APP_ID_ANDROID"
             echo "Branch: $BITRISE_GIT_BRANCH"
             echo "Build: #$BITRISE_BUILD_NUMBER"
             echo "Commit: ${GIT_CLONE_COMMIT_HASH:0:7}"
@@ -193,8 +176,8 @@ workflows:
             
             # Verify APK exists
             if [ ! -f "$ANDROID_APK_PATH" ]; then
-                echo "ERROR: APK file not found!"
-                exit 1
+              echo "ERROR: APK file not found!"
+              exit 1
             fi
             
             # Install Firebase CLI
@@ -253,24 +236,23 @@ workflows:
             EXIT_CODE=$?
             
             if [ $EXIT_CODE -eq 0 ]; then
-                echo "========================================"
-                echo "Successfully deployed to Firebase App Distribution!"
-                echo "Testers in 'testers' group will receive email notification"
-                echo "Check Firebase Console for distribution status"
-                echo "========================================"
+              echo "========================================"
+              echo "✅ Successfully deployed to Firebase App Distribution!"
+              echo "Testers in 'testers' group will receive email notification"
+              echo "Check Firebase Console for distribution status"
+              echo "========================================"
             else
-                echo "========================================"
-                echo "Firebase upload failed with exit code: $EXIT_CODE"
-                echo "Troubleshooting:"
-                echo "1. Verify FIREBASE_TOKEN is valid (run: firebase login:ci)"
-                echo "2. Check FIREBASE_APP_ID_ANDROID matches your app"
-                echo "3. Ensure 'testers' group exists in Firebase Console"
-                echo "4. Check Firebase Console > App Distribution for errors"
-                echo "========================================"
-                exit $EXIT_CODE
+              echo "========================================"
+              echo "❌ Firebase upload failed with exit code: $EXIT_CODE"
+              echo "Troubleshooting:"
+              echo "1. Verify FIREBASE_TOKEN is valid (run: firebase login:ci)"
+              echo "2. Check FIREBASE_APP_ID_ANDROID matches your app"
+              echo "3. Ensure 'testers' group exists in Firebase Console"
+              echo "4. Check Firebase Console > App Distribution for errors"
+              echo "========================================"
+              exit $EXIT_CODE
             fi
     
-    # 13. Generate Build Report
     - script@1:
         title: Generate Build Report
         inputs:
@@ -278,7 +260,7 @@ workflows:
             #!/usr/bin/env bash
             set -e
             
-            cat > "$BITRISE_DEPLOY_DIR/BUILD_REPORT.md" <<'REPORT'
+            cat > "$BITRISE_DEPLOY_DIR/BUILD_REPORT.md" <<EOF
             # Tracker Costs - Build Report
             
             ## Build Information
@@ -286,13 +268,15 @@ workflows:
             - Package: com.example.tracker_costs
             - Build: #$BITRISE_BUILD_NUMBER
             - Branch: $BITRISE_GIT_BRANCH
+            - Commit: ${GIT_CLONE_COMMIT_HASH:0:7}
+            - Date: $(date +'%Y-%m-%d %H:%M:%S')
             
             ## Firebase Services
-            - Firestore Database: Enabled
-            - Firebase Auth: Enabled
-            - Firebase Analytics: Enabled
-            - Firebase Crashlytics: Enabled
-            - App Distribution: Deployed
+            - ✅ Firestore Database: Enabled
+            - ✅ Firebase Auth: Enabled
+            - ✅ Firebase Analytics: Enabled
+            - ✅ Firebase Crashlytics: Enabled
+            - ✅ App Distribution: Deployed
             
             ## Features
             - User Authentication (Email/Password, Google)
@@ -306,11 +290,10 @@ workflows:
             - [ ] Real-time sync
             - [ ] Budget calculations
             - [ ] Category filtering
-            REPORT
+            EOF
             
-            echo "Build report created"
+            echo "✅ Build report created"
     
-    # 14. Create Installation Instructions
     - script@1:
         title: Create Installation Instructions
         inputs:
@@ -318,9 +301,9 @@ workflows:
             #!/usr/bin/env bash
             set -e
             
-            cat > "$BITRISE_DEPLOY_DIR/INSTALL_INSTRUCTIONS.txt" <<'INSTALL'
+            cat > "$BITRISE_DEPLOY_DIR/INSTALL_INSTRUCTIONS.txt" <<'EOF'
             ============================================================
-                     Tracker Costs - Installation Guide
+            Tracker Costs - Installation Guide
             ============================================================
             
             METHOD 1: Firebase App Distribution (RECOMMENDED)
@@ -345,30 +328,23 @@ workflows:
             
             For support, contact the development team.
             ============================================================
-            INSTALL
+            EOF
             
-            echo "Installation instructions created"
+            echo "✅ Installation instructions created"
     
-    # 15. Deploy all artifacts to Bitrise
     - deploy-to-bitrise-io@2:
         inputs:
         - notify_user_groups: none
         - is_compress: 'false'
 
-# App environment variables
-app:
-  envs:
-  - BITRISE_FLUTTER_PROJECT_LOCATION: "."
-    opts:
-      is_expand: false
-  - FLUTTER_VERSION: stable
-    opts:
-      is_expand: false
-  - BITRISE_PROJECT_PATH: android/build.gradle.kts
-    opts:
-      is_expand: false
+triggers:
+  push:
+  - branch: main
+    workflow: android_firebase
+  pull_request:
+  - source_branch: "*"
+    workflow: android_firebase
 
-# Bitrise Stack
 meta:
   bitrise.io:
     stack: linux-docker-android-22.04

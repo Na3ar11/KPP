@@ -237,7 +237,7 @@ workflows:
             firebase appdistribution:distribute "$ANDROID_APK_PATH" \
               --app "$FIREBASE_APP_ID_ANDROID" \
               --token "$FIREBASE_TOKEN" \
-              --groups "testers" \
+              --groups "test" \
               --release-notes "$RELEASE_NOTES" \
               --debug
             
@@ -246,7 +246,7 @@ workflows:
             if [ $EXIT_CODE -eq 0 ]; then
               echo "======================================="
               echo "Successfully deployed to Firebase App Distribution!"
-              echo "Testers in 'testers' group will receive email notification"
+              echo "Testers in 'test' group will receive email notification"
               echo "Check Firebase Console for distribution status"
               echo "========================================"
             else
@@ -255,7 +255,7 @@ workflows:
               echo "Troubleshooting:"
               echo "1. Verify FIREBASE_TOKEN is valid (run: firebase login:ci)"
               echo "2. Check FIREBASE_APP_ID_ANDROID matches your app"
-              echo "3. Ensure 'testers' group exists in Firebase Console"
+              echo "3. Ensure 'test' group exists in Firebase Console"
               echo "4. Check Firebase Console > App Distribution for errors"
               echo "========================================"
               exit $EXIT_CODE

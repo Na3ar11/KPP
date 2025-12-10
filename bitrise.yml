@@ -1,7 +1,15 @@
 ---
-format_version: '13'
+format_version: '23'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 project_type: flutter
+
+triggers:
+  push:
+  - branch: main
+    workflow: android_firebase
+  pull_request:
+  - source_branch: "*"
+    workflow: android_firebase
 
 app:
   envs:
@@ -236,14 +244,14 @@ workflows:
             EXIT_CODE=$?
             
             if [ $EXIT_CODE -eq 0 ]; then
-              echo "========================================"
-              echo "✅ Successfully deployed to Firebase App Distribution!"
+              echo "======================================="
+              echo "Successfully deployed to Firebase App Distribution!"
               echo "Testers in 'testers' group will receive email notification"
               echo "Check Firebase Console for distribution status"
               echo "========================================"
             else
-              echo "========================================"
-              echo "❌ Firebase upload failed with exit code: $EXIT_CODE"
+              echo "======================================="
+              echo "Firebase upload failed with exit code: $EXIT_CODE"
               echo "Troubleshooting:"
               echo "1. Verify FIREBASE_TOKEN is valid (run: firebase login:ci)"
               echo "2. Check FIREBASE_APP_ID_ANDROID matches your app"
@@ -272,11 +280,11 @@ workflows:
             - Date: $(date +'%Y-%m-%d %H:%M:%S')
             
             ## Firebase Services
-            - ✅ Firestore Database: Enabled
-            - ✅ Firebase Auth: Enabled
-            - ✅ Firebase Analytics: Enabled
-            - ✅ Firebase Crashlytics: Enabled
-            - ✅ App Distribution: Deployed
+            - Firestore Database: Enabled
+            - Firebase Auth: Enabled
+            - Firebase Analytics: Enabled
+            - Firebase Crashlytics: Enabled
+            - App Distribution: Deployed
             
             ## Features
             - User Authentication (Email/Password, Google)
@@ -292,7 +300,7 @@ workflows:
             - [ ] Category filtering
             EOF
             
-            echo "✅ Build report created"
+            echo "Build report created"
     
     - script@1:
         title: Create Installation Instructions
@@ -330,20 +338,12 @@ workflows:
             ============================================================
             EOF
             
-            echo "✅ Installation instructions created"
+            echo "Installation instructions created"
     
     - deploy-to-bitrise-io@2:
         inputs:
         - notify_user_groups: none
         - is_compress: 'false'
-
-triggers:
-  push:
-  - branch: main
-    workflow: android_firebase
-  pull_request:
-  - source_branch: "*"
-    workflow: android_firebase
 
 meta:
   bitrise.io:

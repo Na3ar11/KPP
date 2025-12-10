@@ -100,19 +100,35 @@ workflows:
         inputs:
         - content: |-
             #!/usr/bin/env bash
-            set -e
+            set -ex
             echo "Setting up Android keystore for signing..."
             
-            # Decode keystore from base64 Secret
+            # Validate environment variables
             if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
               echo "ERROR: ANDROID_KEYSTORE_BASE64 not found in Secrets!"
-              echo "Add it to Bitrise > Workflow Editor > Secrets"
               exit 1
             fi
             
-            # Create keystore file from base64
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
-            echo "SUCCESS: Keystore file created"
+            if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+              echo "ERROR: Keystore credentials not found!"
+              echo "Missing: KEYSTORE_PASSWORD, KEY_PASSWORD, or KEY_ALIAS"
+              exit 1
+            fi
+            
+            # Create keystore directory
+            mkdir -p android/app
+            
+            # Decode keystore from base64 (Linux-compatible)
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+            
+            # Verify keystore file
+            if [ -f "android/app/upload-keystore.jks" ]; then
+              KEYSTORE_SIZE=$(du -h android/app/upload-keystore.jks | cut -f1)
+              echo "SUCCESS: Keystore created ($KEYSTORE_SIZE)"
+            else
+              echo "ERROR: Keystore file not created!"
+              exit 1
+            fi
             
             # Create key.properties file
             cat > android/key.properties <<EOF
@@ -122,8 +138,17 @@ workflows:
             storeFile=upload-keystore.jks
             EOF
             
-            echo "SUCCESS: key.properties created"
-            echo "Keystore SHA-1: 13:75:AE:52:C9:70:08:6E:88:7F:D0:84:68:7C:6B:DD:78:EB:6E:EF"
+            # Verify key.properties
+            if [ -f "android/key.properties" ]; then
+              echo "SUCCESS: key.properties created"
+              echo "Configuration:"
+              echo "  - Alias: ${KEY_ALIAS}"
+              echo "  - Keystore: upload-keystore.jks"
+              echo "  - SHA-1: 13:75:AE:52:C9:70:08:6E:88:7F:D0:84:68:7C:6B:DD:78:EB:6E:EF"
+            else
+              echo "ERROR: key.properties not created!"
+              exit 1
+            fi
         is_always_run: true
     
     - script@1:

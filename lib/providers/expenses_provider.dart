@@ -8,7 +8,7 @@ enum LoadingState {
   success,
   error,
 }
-
+//абоба 2 
 class ExpensesProvider extends ChangeNotifier {
   List<Expense> _expenses = [];
   LoadingState _loadingState = LoadingState.idle;
@@ -158,7 +158,7 @@ class ExpensesProvider extends ChangeNotifier {
 
     final expenses = <Expense>[];
 
-    // Генеруємо 15-20 випадкових витрат за останні 30 днів
+
     final count = 15 + random.nextInt(6);
 
     for (int i = 0; i < count; i++) {
@@ -177,7 +177,7 @@ class ExpensesProvider extends ChangeNotifier {
       ));
     }
 
-    // Сортуємо за датою (новіші спочатку)
+
     expenses.sort((a, b) => b.date.compareTo(a.date));
 
     return expenses;

@@ -24,7 +24,7 @@ class UserSettings {
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
-  // Копіювання з можливістю зміни параметрів
+  // Копіювання з можливістю зміни параметрів ааааааааааааааааа
   UserSettings copyWith({
     String? userId,
     double? monthlyBudget,

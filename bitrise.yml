@@ -278,64 +278,37 @@ workflows:
             #!/usr/bin/env bash
             set -e
             
-            echo "Generating build report..."
+            cat > "$BITRISE_DEPLOY_DIR/BUILD_REPORT.md" <<'REPORT'
+            # Tracker Costs - Build Report
             
-            cat > $BITRISE_DEPLOY_DIR/BUILD_REPORT.md << 'EOF'
-# Tracker Costs - Build Report
-
-## Build Information
-
-| Property | Value |
-|----------|-------|
-| App Name | Tracker Costs |
-| Version | 1.0.0 |
-| Package | com.example.tracker_costs |
-| Firebase Project | tracker-costs |
-
-## Firebase Configuration
-
-| Service | Status |
-|---------|--------|
-| Firestore Database | Enabled |
-| Firebase Auth | Enabled |
-| Firebase Analytics | Enabled |
-| Firebase Crashlytics | Enabled |
-| App Distribution | Deployed |
-
-## Features
-
-- User Authentication (Email/Password, Google Sign-In)
-- Real-time Expense Tracking with Firestore
-- Monthly Budget Management
-- Category-based Expense Filtering
-- User Settings & Preferences
-- Composite Firestore Indexes
-- Security Rules Implementation
-
-## Technical Stack
-
-- Framework: Flutter
-- State Management: Provider
-- Database: Cloud Firestore
-- Authentication: Firebase Auth
-- Analytics: Firebase Analytics
-- Crash Reporting: Firebase Crashlytics
-
-## Testing Checklist
-
-- Login with Email/Password
-- Login with Google
-- Add new expense
-- Edit existing expense
-- Delete expense
-- Check real-time sync
-- Verify budget calculations
-- Test category filtering
-- Check user settings
-- Verify data persists after logout
-EOF
+            ## Build Information
+            - Version: 1.0.0
+            - Package: com.example.tracker_costs
+            - Build: #$BITRISE_BUILD_NUMBER
+            - Branch: $BITRISE_GIT_BRANCH
             
-            echo "Build report created: BUILD_REPORT.md"
+            ## Firebase Services
+            - Firestore Database: Enabled
+            - Firebase Auth: Enabled
+            - Firebase Analytics: Enabled
+            - Firebase Crashlytics: Enabled
+            - App Distribution: Deployed
+            
+            ## Features
+            - User Authentication (Email/Password, Google)
+            - Real-time Expense Tracking
+            - Monthly Budget Management
+            - Category-based Filtering
+            
+            ## Testing Checklist
+            - [ ] Login/Register
+            - [ ] Add/Edit/Delete expenses
+            - [ ] Real-time sync
+            - [ ] Budget calculations
+            - [ ] Category filtering
+            REPORT
+            
+            echo "Build report created"
     
     # 14. Create Installation Instructions
     - script@1:
@@ -345,112 +318,34 @@ EOF
             #!/usr/bin/env bash
             set -e
             
-            cat > $BITRISE_DEPLOY_DIR/INSTALL_INSTRUCTIONS.txt << 'INSTRUCTIONS'
-============================================================
-         Tracker Costs - Installation Instructions           
-============================================================
-
-APK File: TrackerCosts_v1.0.0_buildXX.apk
-
-------------------------------------------------------------
-METHOD 1: Firebase App Distribution (RECOMMENDED)
-------------------------------------------------------------
-
-1. Check your email for Firebase App Distribution invitation
-2. Install "Firebase App Tester" from Google Play Store
-3. Open the invitation link from email
-4. Tap "Download" in Firebase App Tester
-5. Install the app and start testing!
-
-Benefits:
-- Automatic updates when new builds are available
-- Easy to manage versions
-- Crash reports automatically sent to developers
-
-------------------------------------------------------------
-METHOD 2: Manual APK Installation
-------------------------------------------------------------
-
-1. Download the APK file to your Android device
-
-2. Enable "Unknown Sources" on your Android:
-   - Android 8.0+: Settings > Apps > Special Access > 
-     Install Unknown Apps > Select your browser/File Manager
-   - Older Android: Settings > Security > Unknown Sources (toggle ON)
-
-3. Open the downloaded APK file
-
-4. Tap "Install"
-
-5. Wait for installation to complete
-
-6. Tap "Open" to launch the app
-
-------------------------------------------------------------
-METHOD 3: ADB Installation (Developers)
-------------------------------------------------------------
-
-1. Enable USB Debugging on your Android device:
-   Settings > About Phone > Tap "Build Number" 7 times
-   Settings > Developer Options > USB Debugging (toggle ON)
-
-2. Connect device to computer via USB
-
-3. Run in terminal:
-   adb install TrackerCosts_v1.0.0_buildXX.apk
-
-4. For emulator:
-   adb -e install TrackerCosts_v1.0.0_buildXX.apk
-
-------------------------------------------------------------
-First Launch
-------------------------------------------------------------
-
-After installing the app:
-
-1. Open "Tracker Costs" app
-2. Create account with Email/Password OR Login with Google
-3. Grant necessary permissions if prompted
-4. Start tracking your expenses!
-
-------------------------------------------------------------
-App Features
-------------------------------------------------------------
-
-- Real-time expense tracking with Firebase Firestore
-- Monthly budget management
-- Category-based expense organization
-- User authentication (Email/Google Sign-In)
-- Automatic data sync across devices
-- Analytics and crash reporting
-
-------------------------------------------------------------
-Troubleshooting
-------------------------------------------------------------
-
-"App not installed" error:
--> Uninstall previous version first
--> Enable "Unknown Sources"
--> Check if you have enough storage
-
-Can't login:
--> Check internet connection
--> Verify email/password are correct
--> For Google Sign-In: ensure Google Play Services are updated
-
-Data not syncing:
--> Check internet connection
--> Logout and login again
--> Clear app cache: Settings > Apps > Tracker Costs > Clear Cache
-
-------------------------------------------------------------
-
-Installation Complete!
-
-For support or bug reports, contact the development team.
-
-------------------------------------------------------------
-INSTRUCTIONS
+            cat > "$BITRISE_DEPLOY_DIR/INSTALL_INSTRUCTIONS.txt" <<'INSTALL'
+            ============================================================
+                     Tracker Costs - Installation Guide
+            ============================================================
+            
+            METHOD 1: Firebase App Distribution (RECOMMENDED)
+            1. Check email for Firebase invitation
+            2. Install Firebase App Tester from Play Store
+            3. Open invitation link and download app
+            
+            METHOD 2: Manual APK Installation
+            1. Download APK to Android device
+            2. Enable: Settings > Security > Unknown Sources
+            3. Open APK file and install
+            
+            METHOD 3: ADB Installation (Developers)
+            1. Enable USB Debugging on device
+            2. Connect device to computer
+            3. Run: adb install TrackerCosts_v1.0.0.apk
+            
+            TROUBLESHOOTING:
+            - "App not installed": Uninstall old version first
+            - "Can't login": Check internet connection
+            - "Data not syncing": Logout and login again
+            
+            For support, contact the development team.
+            ============================================================
+            INSTALL
             
             echo "Installation instructions created"
     

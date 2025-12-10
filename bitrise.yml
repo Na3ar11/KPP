@@ -30,7 +30,7 @@ workflows:
     # 3. Install Flutter
     - flutter-installer@0:
         inputs:
-        - version: 3.24.5
+        - version: 3.38.4
         - is_update: 'false'
     
     # 4. Cache Dart packages

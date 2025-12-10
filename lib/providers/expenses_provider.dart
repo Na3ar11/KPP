@@ -14,7 +14,7 @@ class ExpensesProvider extends ChangeNotifier {
   LoadingState _loadingState = LoadingState.idle;
   String? _errorMessage;
   double _budget = 15000.0; 
-// я хочу вмерти
+// я хочу вмерти 2 сезон 10 серія
   List<Expense> get expenses => List.unmodifiable(_expenses);
   LoadingState get loadingState => _loadingState;
   String? get errorMessage => _errorMessage;

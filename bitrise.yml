@@ -290,12 +290,25 @@ workflows:
             
             # Upload to Firebase App Distribution
             echo "Starting upload to Firebase..."
-            firebase appdistribution:distribute "$ANDROID_APK_PATH" \
-              --app "$FIREBASE_APP_ID_ANDROID" \
-              --token "$FIREBASE_TOKEN" \
-              --groups "test" \
-              --release-notes "$RELEASE_NOTES" \
-              --debug
+            
+            # Get tester emails from environment or use group
+            if [ ! -z "$TESTER_EMAILS" ]; then
+              echo "Deploying to specific emails: $TESTER_EMAILS"
+              firebase appdistribution:distribute "$ANDROID_APK_PATH" \
+                --app "$FIREBASE_APP_ID_ANDROID" \
+                --token "$FIREBASE_TOKEN" \
+                --emails "$TESTER_EMAILS" \
+                --release-notes "$RELEASE_NOTES" \
+                --debug
+            else
+              echo "Deploying to group: test"
+              firebase appdistribution:distribute "$ANDROID_APK_PATH" \
+                --app "$FIREBASE_APP_ID_ANDROID" \
+                --token "$FIREBASE_TOKEN" \
+                --groups "test" \
+                --release-notes "$RELEASE_NOTES" \
+                --debug
+            fi
             
             EXIT_CODE=$?
             
@@ -398,8 +411,26 @@ workflows:
     
     - deploy-to-bitrise-io@2:
         inputs:
-        - notify_user_groups: none
+        - notify_user_groups: everyone
         - is_compress: 'false'
+    
+    - slack@3:
+        is_always_run: true
+        run_if: .IsCI
+        inputs:
+        - webhook_url: $SLACK_WEBHOOK_URL
+        - channel: '#builds'
+        - from_username: Bitrise CI
+        - message: |
+            Build #${BITRISE_BUILD_NUMBER} for ${BITRISE_APP_TITLE}
+            
+            Status: ${BITRISE_BUILD_STATUS}
+            Branch: ${BITRISE_GIT_BRANCH}
+            Commit: ${GIT_CLONE_COMMIT_MESSAGE_SUBJECT}
+            
+            ${BITRISE_BUILD_URL}
+        - emoji: ':rocket:'
+        - icon_url: https://bitrise-public-content-production.s3.amazonaws.com/slack/bitrise_bot_icon.png
 
 meta:
   bitrise.io:

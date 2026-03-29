@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:provider/provider.dart';
+import '../models/category.dart';
+import '../providers/categories_provider.dart';
 import '../providers/firestore_expenses_provider.dart';
+import '../providers/user_settings_provider.dart';
 import '../models/expense.dart';
+import '../utils/currency_converter.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final Expense? expense; // null - додавання, є значення - редагування
@@ -16,7 +20,7 @@ class AddExpenseScreen extends StatefulWidget {
 class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _commentController = TextEditingController();
-  String? _selectedCategory;
+  String? _selectedCategoryId;
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
 
@@ -26,19 +30,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void initState() {
     super.initState();
     _logOpenAddExpense();
-    
+
     // Якщо режим редагування - заповнюємо поля
     if (_isEditMode) {
-      _amountController.text = widget.expense!.amount.toStringAsFixed(0);
+      _amountController.text = widget.expense!.originalAmount.toStringAsFixed(
+        0,
+      );
       _commentController.text = widget.expense!.description;
-      _selectedCategory = widget.expense!.category;
+      _selectedCategoryId = widget.expense!.categoryId;
       _selectedDate = widget.expense!.date;
     }
   }
 
   Future<void> _logOpenAddExpense() async {
     await FirebaseAnalytics.instance.logEvent(
-      name: _isEditMode ? 'open_edit_expense_screen' : 'open_add_expense_screen',
+      name: _isEditMode
+          ? 'open_edit_expense_screen'
+          : 'open_add_expense_screen',
       parameters: {
         'screen_name': 'add_expense_screen',
         'mode': _isEditMode ? 'edit' : 'add',
@@ -46,16 +54,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       },
     );
   }
-
-  final List<Map<String, dynamic>> _categories = [
-    {'name': 'Їжа', 'icon': '🍕', 'color': const Color(0xFFE53E3E)},
-    {'name': 'Транспорт', 'icon': '🚕', 'color': const Color(0xFF3182CE)},
-    {'name': 'Покупки', 'icon': '🛒', 'color': const Color(0xFF38A169)},
-    {'name': 'Здоров\'я', 'icon': '💊', 'color': const Color(0xFFD69E2E)},
-    {'name': 'Розваги', 'icon': '🎬', 'color': const Color(0xFF4A5568)},
-    {'name': 'Дім', 'icon': '🏠', 'color': const Color(0xFF2D3748)},
-    {'name': 'Освіта', 'icon': '📚', 'color': const Color(0xFF38B2AC)},
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -95,15 +93,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 // Секція введення суми
                 _buildAmountSection(),
                 const SizedBox(height: 20),
-                
+
                 // Секція категорій
                 _buildCategorySection(),
                 const SizedBox(height: 20),
-                
+
                 // Секція дати
                 _buildDateSection(),
                 const SizedBox(height: 20),
-                
+
                 // Секція коментарів
                 _buildCommentSection(),
               ],
@@ -115,6 +113,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Widget _buildAmountSection() {
+    final currency = context.watch<UserSettingsProvider>().currency;
+
     return Container(
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
@@ -130,7 +130,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ),
       child: Column(
         children: [
-          const Text('₴', style: TextStyle(fontSize: 24, color: Color(0xFF667EEA))),
+          Text(
+            CurrencyConverter.symbolFor(currency),
+            style: const TextStyle(fontSize: 24, color: Color(0xFF667EEA)),
+          ),
           const SizedBox(height: 10),
           TextField(
             controller: _amountController,
@@ -144,13 +147,29 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             ),
             onChanged: (value) => setState(() {}),
           ),
-          const Text('Введіть суму витрати', style: TextStyle(color: Colors.grey)),
+          const Text(
+            'Введіть суму витрати',
+            style: TextStyle(color: Colors.grey),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildCategorySection() {
+    final categories = context.watch<CategoriesProvider>().categories;
+    String? effectiveSelectedCategoryId = _selectedCategoryId;
+
+    if (_isEditMode && effectiveSelectedCategoryId == null) {
+      try {
+        effectiveSelectedCategoryId = categories
+            .firstWhere((c) => c.name == widget.expense!.category)
+            .id;
+      } catch (_) {
+        effectiveSelectedCategoryId = null;
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -167,61 +186,81 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Категорія', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 15),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              childAspectRatio: 0.8,
-              crossAxisSpacing: 15,
-              mainAxisSpacing: 15,
-            ),
-            itemCount: _categories.length,
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              final isSelected = _selectedCategory == category['name'];
-              
-              return GestureDetector(
-                onTap: () => setState(() {
-                  _selectedCategory = category['name'];
-                }),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFFF0F4FF) : const Color(0xFFF8F9FA),
-                    border: Border.all(
-                      color: isSelected ? const Color(0xFF667EEA) : Colors.transparent,
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: category['color'].withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text(category['icon'], style: const TextStyle(fontSize: 18)),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        category['name'],
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+          const Text(
+            'Категорія',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
+          const SizedBox(height: 15),
+          if (categories.isEmpty)
+            const Text(
+              'Немає категорій. Зачекайте, поки вони завантажаться.',
+              style: TextStyle(color: Colors.grey),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                childAspectRatio: 0.8,
+                crossAxisSpacing: 15,
+                mainAxisSpacing: 15,
+              ),
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final category = categories[index];
+                final color = Color(category.colorValue);
+                final isSelected = effectiveSelectedCategoryId == category.id;
+
+                return GestureDetector(
+                  onTap: () => setState(() {
+                    _selectedCategoryId = category.id;
+                  }),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFFF0F4FF)
+                          : const Color(0xFFF8F9FA),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF667EEA)
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Text(
+                              category.icon,
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          category.name,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -244,7 +283,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Дата', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text(
+            'Дата',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 15),
           GestureDetector(
             onTap: () async {
@@ -296,7 +338,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Коментар (необов\'язково)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text(
+            'Коментар (необов\'язково)',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 15),
           TextField(
             controller: _commentController,
@@ -305,7 +350,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               hintText: 'Додайте опис витрати...',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE1E5E9), width: 2),
+                borderSide: const BorderSide(
+                  color: Color(0xFFE1E5E9),
+                  width: 2,
+                ),
               ),
               filled: true,
               fillColor: const Color(0xFFF8F9FA),
@@ -317,10 +365,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   bool _canSave() {
-    return _amountController.text.isNotEmpty && 
-           double.tryParse(_amountController.text) != null &&
-           double.parse(_amountController.text) > 0 &&
-           _selectedCategory != null;
+    return _amountController.text.isNotEmpty &&
+        double.tryParse(_amountController.text) != null &&
+        double.parse(_amountController.text) > 0 &&
+        _selectedCategoryId != null;
   }
 
   Future<void> _saveExpense() async {
@@ -330,25 +378,62 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     try {
       final provider = context.read<FirestoreExpensesProvider>();
+      final categoriesProvider = context.read<CategoriesProvider>();
+      final settingsProvider = context.read<UserSettingsProvider>();
       final userId = provider.userId;
-      
+
       if (userId == null) {
         throw Exception('Користувач не авторизований');
       }
-      
-      final amount = double.parse(_amountController.text);
-      final category = _categories.firstWhere((c) => c['name'] == _selectedCategory);
+
+      final originalAmount = double.parse(_amountController.text);
+      final selectedCurrency = settingsProvider.currency;
+      final rateUahPerOriginal = CurrencyConverter.uahPerCurrency(
+        selectedCurrency,
+      );
+      final amountUah = CurrencyConverter.convertToUah(
+        originalAmount,
+        selectedCurrency,
+      );
+      Category? selectedCategoryData;
+      try {
+        selectedCategoryData = categoriesProvider.categories.firstWhere(
+          (c) => c.id == _selectedCategoryId,
+        );
+      } catch (_) {
+        if (_isEditMode) {
+          try {
+            selectedCategoryData = categoriesProvider.categories.firstWhere(
+              (c) => c.name == widget.expense!.category,
+            );
+          } catch (_) {
+            selectedCategoryData = null;
+          }
+        }
+      }
+
+      if (selectedCategoryData == null) {
+        throw Exception('Не вдалося знайти обрану категорію');
+      }
 
       if (_isEditMode) {
         final updatedExpense = widget.expense!.copyWith(
-          amount: amount,
-          category: _selectedCategory!,
-          description: _commentController.text.trim().isEmpty 
-              ? 'Витрата' 
+          amount: amountUah,
+          amountUah: amountUah,
+          originalAmount: originalAmount,
+          originalCurrency: selectedCurrency,
+          rateUahPerOriginal: rateUahPerOriginal,
+          category: selectedCategoryData.name,
+          categoryId: selectedCategoryData.id,
+          categoryNameSnapshot: selectedCategoryData.name,
+          categoryIconSnapshot: selectedCategoryData.icon,
+          categoryColorSnapshot: selectedCategoryData.colorValue,
+          description: _commentController.text.trim().isEmpty
+              ? 'Витрата'
               : _commentController.text.trim(),
           date: _selectedDate,
-          icon: category['icon'] as String,
-          color: category['color'] as Color,
+          icon: selectedCategoryData.icon,
+          color: Color(selectedCategoryData.colorValue),
         );
 
         await provider.updateExpense(updatedExpense);
@@ -356,8 +441,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         await FirebaseAnalytics.instance.logEvent(
           name: 'expense_updated',
           parameters: {
-            'category': _selectedCategory!,
-            'amount': amount,
+            'category': selectedCategoryData.name,
+            'amount_uah': amountUah,
+            'original_amount': originalAmount,
+            'original_currency': selectedCurrency,
           },
         );
 
@@ -373,14 +460,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         final newExpense = Expense(
           id: '', // Firestore згенерує автоматично
           userId: userId,
-          amount: amount,
-          category: _selectedCategory!,
-          description: _commentController.text.trim().isEmpty 
-              ? 'Витрата' 
+          amount: amountUah,
+          amountUah: amountUah,
+          originalAmount: originalAmount,
+          originalCurrency: selectedCurrency,
+          rateUahPerOriginal: rateUahPerOriginal,
+          category: selectedCategoryData.name,
+          categoryId: selectedCategoryData.id,
+          categoryNameSnapshot: selectedCategoryData.name,
+          categoryIconSnapshot: selectedCategoryData.icon,
+          categoryColorSnapshot: selectedCategoryData.colorValue,
+          description: _commentController.text.trim().isEmpty
+              ? 'Витрата'
               : _commentController.text.trim(),
           date: _selectedDate,
-          icon: category['icon'] as String,
-          color: category['color'] as Color,
+          icon: selectedCategoryData.icon,
+          color: Color(selectedCategoryData.colorValue),
         );
 
         await provider.addExpense(newExpense);
@@ -388,8 +483,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         await FirebaseAnalytics.instance.logEvent(
           name: 'expense_added',
           parameters: {
-            'category': _selectedCategory!,
-            'amount': amount,
+            'category': selectedCategoryData.name,
+            'amount_uah': amountUah,
+            'original_amount': originalAmount,
+            'original_currency': selectedCurrency,
           },
         );
 

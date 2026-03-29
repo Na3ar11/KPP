@@ -7,9 +7,17 @@ import 'expenses_screen.dart';
 import 'expense_detail_screen.dart';
 import 'category_expenses_screen.dart';
 import 'login_screen.dart';
+import 'budget_screen.dart';
+import 'statistics_screen.dart';
+import 'settings_screen.dart';
 import '../repositories/auth_repository.dart';
+import '../models/category.dart';
 import '../providers/firestore_expenses_provider.dart';
+import '../providers/categories_provider.dart';
+import '../providers/user_settings_provider.dart';
 import '../models/expense.dart';
+import '../utils/currency_converter.dart';
+import '../widgets/app_bottom_nav_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,17 +27,54 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _currentTabIndex = 0;
+
   @override
   void initState() {
     super.initState();
     // Провайдер вже ініціалізований в AuthWrapper
   }
 
+  void _onTabSelected(int index) {
+    if (index == 0) {
+      setState(() => _currentTabIndex = index);
+      return;
+    }
+
+    if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const BudgetScreen()),
+      );
+      return;
+    }
+
+    if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+      );
+      return;
+    }
+
+    if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Цей екран додамо наступним кроком'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authRepository = AuthRepository();
-    final userName = authRepository.userName;
-    
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Center(
@@ -37,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
           constraints: const BoxConstraints(maxWidth: 600),
           child: Column(
             children: [
-              _buildHeader(context, userName),
+              _buildHeader(context),
               _buildQuickStats(),
               Expanded(
                 child: SingleChildScrollView(
@@ -56,23 +101,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF667EEA),
-        child: const Icon(Icons.add, color: Colors.white),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: _currentTabIndex,
+        onTap: _onTabSelected,
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, String userName) {
-    final authRepository = AuthRepository();
-    final user = authRepository.currentUser;
-    
+  Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -88,108 +124,143 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const Row(
                 children: [
                   Text(
-                    'Привіт, $userName!',
-                    style: const TextStyle(
+                    'Ваші витрати',
+                    style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    icon: CircleAvatar(
-                      backgroundColor: Colors.white.withOpacity(0.3),
-                      child: const Icon(Icons.person, color: Colors.white, size: 24),
-                    ),
-                    itemBuilder: (context) => <PopupMenuEntry<String>>[
-                      PopupMenuItem<String>(
-                        value: 'profile',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.person_outline),
-                            const SizedBox(width: 8),
-                            Text(user?.email ?? 'Email'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem<String>(
-                        value: 'logout',
-                        child: Row(
-                          children: [
-                            Icon(Icons.logout, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Вийти', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onSelected: (value) async {
-                      if (value == 'logout') {
-                        // Логуємо вихід користувача
-                        await FirebaseAnalytics.instance.logEvent(
-                          name: 'user_logout',
-                          parameters: {
-                            'user_email': user?.email ?? 'unknown',
-                            'timestamp': DateTime.now().toIso8601String(),
-                          },
-                        );
-                        
-                        await authRepository.signOut();
-                        if (!context.mounted) return;
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          (route) => false,
-                        );
-                      }
-                    },
-                  ),
                 ],
               ),
               const SizedBox(height: 20),
-              
-              Consumer<FirestoreExpensesProvider>(
-                builder: (context, provider, child) {
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Залишок на рахунку',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
+
+              Consumer3<
+                FirestoreExpensesProvider,
+                UserSettingsProvider,
+                CategoriesProvider
+              >(
+                builder:
+                    (
+                      context,
+                      expensesProvider,
+                      settingsProvider,
+                      categoriesProvider,
+                      child,
+                    ) {
+                      final spentByCategory = _calculateMonthSpentByCategory(
+                        expensesProvider.expenses,
+                        categoriesProvider.categories,
+                      );
+                      final spentMonth = spentByCategory.values.fold<double>(
+                        0,
+                        (sum, value) => sum + value,
+                      );
+                      final budgetLimit = categoriesProvider.totalBudget;
+                      final balance = (budgetLimit - spentMonth)
+                          .clamp(0.0, double.infinity)
+                          .toDouble();
+                      final currency = settingsProvider.currency;
+
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        const SizedBox(height: 5),
-                        Text(
-                          '₴${provider.balance.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Залишок на рахунку',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    CurrencyConverter.formatFromUah(
+                                      balance,
+                                      currency,
+                                      decimalDigits: 2,
+                                    ),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'За поточний місяць',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Material(
+                              color: Colors.transparent,
+                              shape: const CircleBorder(),
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const AddExpenseScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  width: 78,
+                                  height: 78,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Color(0xFF7B73F6),
+                                        Color(0xFF5A56DB),
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF5A56DB,
+                                        ).withOpacity(0.35),
+                                        blurRadius: 18,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 32,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'За поточний місяць',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                      );
+                    },
               ),
             ],
           ),
@@ -199,86 +270,153 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickStats() {
-    return Consumer<FirestoreExpensesProvider>(
-      builder: (context, provider, child) {
-        return Transform.translate(
-          offset: const Offset(0, -30),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
+    return Consumer3<
+      FirestoreExpensesProvider,
+      UserSettingsProvider,
+      CategoriesProvider
+    >(
+      builder:
+          (context, provider, settingsProvider, categoriesProvider, child) {
+            final currency = settingsProvider.currency;
+            final spentByCategory = _calculateMonthSpentByCategory(
+              provider.expenses,
+              categoriesProvider.categories,
+            );
+            final monthSpent = spentByCategory.values.fold<double>(
+              0,
+              (sum, value) => sum + value,
+            );
+
+            return Transform.translate(
+              offset: const Offset(0, -30),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        '₴${provider.todayAmount.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFE74C3C),
-                        ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            CurrencyConverter.formatFromUah(
+                              provider.todayAmount,
+                              currency,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFE74C3C),
+                            ),
+                          ),
+                          const Text(
+                            'Сьогодні',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
                       ),
-                      const Text(
-                        'Сьогодні',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            CurrencyConverter.formatFromUah(
+                              provider.weekAmount,
+                              currency,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFF39C12),
+                            ),
+                          ),
+                          const Text(
+                            'Тиждень',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            CurrencyConverter.formatFromUah(
+                              monthSpent,
+                              currency,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF667EEA),
+                            ),
+                          ),
+                          const Text(
+                            'Місяць',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        '₴${provider.weekAmount.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFF39C12),
-                        ),
-                      ),
-                      const Text(
-                        'Тиждень',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        '₴${provider.monthAmount.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF667EEA),
-                        ),
-                      ),
-                      const Text(
-                        'Місяць',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+            );
+          },
     );
+  }
+
+  Map<String, double> _calculateMonthSpentByCategory(
+    List<Expense> expenses,
+    List<Category> categories,
+  ) {
+    final now = DateTime.now();
+    final Map<String, double> totals = {};
+
+    for (final expense in expenses) {
+      if (expense.date.year != now.year || expense.date.month != now.month) {
+        continue;
+      }
+
+      final key = _resolveBudgetCategoryKey(expense, categories);
+      if (key == null) {
+        continue;
+      }
+
+      totals[key] = (totals[key] ?? 0) + expense.amount;
+    }
+
+    return totals;
+  }
+
+  String? _resolveBudgetCategoryKey(
+    Expense expense,
+    List<Category> categories,
+  ) {
+    final id = expense.categoryId;
+    if (id != null && id.trim().isNotEmpty) {
+      return id;
+    }
+
+    final fallbackName = expense.categoryNameSnapshot.trim().isNotEmpty
+        ? expense.categoryNameSnapshot
+        : expense.category;
+
+    try {
+      return categories.firstWhere((c) => c.name == fallbackName).id;
+    } catch (_) {
+      return null;
+    }
   }
 
   Widget _buildRecentExpenses(BuildContext context) {
@@ -311,7 +449,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const ExpensesScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const ExpensesScreen(),
+                        ),
                       );
                     },
                     child: const Text('Переглянути всі'),
@@ -331,7 +471,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 Center(
                   child: Column(
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         provider.errorMessage ?? 'Помилка завантаження',
@@ -353,7 +497,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
+                        Icon(
+                          Icons.inbox_outlined,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
                         SizedBox(height: 16),
                         Text(
                           'Немає витрат',
@@ -383,6 +531,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildExpenseItem(Expense expense) {
     return Builder(
       builder: (context) {
+        final currency = context.watch<UserSettingsProvider>().currency;
+
         return GestureDetector(
           onTap: () {
             Navigator.push(
@@ -394,6 +544,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   category: expense.category,
                   description: expense.description,
                   amount: expense.amount,
+                  amountUah: expense.amountUah,
+                  originalAmount: expense.originalAmount,
+                  originalCurrency: expense.originalCurrency,
+                  rateUahPerOriginal: expense.rateUahPerOriginal,
                   color: expense.color,
                   date: expense.date,
                 ),
@@ -416,7 +570,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: Center(
-                    child: Text(expense.icon, style: const TextStyle(fontSize: 20)),
+                    child: Text(
+                      expense.icon,
+                      style: const TextStyle(fontSize: 20),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 15),
@@ -430,13 +587,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Text(
                         expense.description,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 Text(
-                  '${expense.amount.toStringAsFixed(0)}₴',
+                  CurrencyConverter.formatFromUah(expense.amount, currency),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     color: Color(0xFFE74C3C),
@@ -486,10 +646,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Категорії',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
-              Text(
-                'Керувати',
-                style: TextStyle(color: Color(0xFF667EEA)),
-              ),
+              Text('Керувати', style: TextStyle(color: Color(0xFF667EEA))),
             ],
           ),
           const SizedBox(height: 20),
@@ -517,7 +674,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   if (category['name'] == 'Їжа') {
                     try {
-                      throw Exception('Тестова помилка при натисканні на категорію Їжа');
+                      throw Exception(
+                        'Тестова помилка при натисканні на категорію Їжа',
+                      );
                     } catch (error, stackTrace) {
                       await FirebaseCrashlytics.instance.recordError(
                         error,
@@ -529,7 +688,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Нефатальний краш-репорт відправлено в Firebase!'),
+                            content: Text(
+                              'Нефатальний краш-репорт відправлено в Firebase!',
+                            ),
                             backgroundColor: Colors.orange,
                             duration: Duration(seconds: 2),
                           ),
@@ -538,7 +699,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                   } else if (category['name'] == 'Транспорт') {
                     await FirebaseCrashlytics.instance.recordError(
-                      Exception('Фатальна помилка при натисканні на категорію Транспорт'),
+                      Exception(
+                        'Фатальна помилка при натисканні на категорію Транспорт',
+                      ),
                       StackTrace.current,
                       reason: 'Фатальний тестовий краш - Транспорт',
                       fatal: true,
@@ -586,7 +749,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 10),
                     Text(
                       category['name'] as String,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ],

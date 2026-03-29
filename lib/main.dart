@@ -7,8 +7,12 @@ import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'repositories/auth_repository.dart';
+import 'repositories/categories_repository.dart';
 import 'repositories/expenses_repository.dart';
+import 'repositories/exchange_rate_repository.dart';
 import 'repositories/user_settings_repository.dart';
+import 'providers/categories_provider.dart';
+import 'providers/exchange_rate_provider.dart';
 import 'providers/firestore_expenses_provider.dart';
 import 'providers/user_settings_provider.dart';
 
@@ -42,6 +46,12 @@ class MyApp extends StatelessWidget {
         Provider<ExpensesRepository>(
           create: (_) => FirestoreExpensesRepository(),
         ),
+        Provider<CategoriesRepository>(
+          create: (_) => FirestoreCategoriesRepository(),
+        ),
+        Provider<ExchangeRateRepository>(
+          create: (_) => NbuExchangeRateRepository(),
+        ),
         Provider<UserSettingsRepository>(
           create: (_) => FirestoreUserSettingsRepository(),
         ),
@@ -52,10 +62,24 @@ class MyApp extends StatelessWidget {
             repository: context.read<ExpensesRepository>(),
           ),
         ),
+        ChangeNotifierProvider<CategoriesProvider>(
+          create: (context) => CategoriesProvider(
+            repository: context.read<CategoriesRepository>(),
+          ),
+        ),
         ChangeNotifierProvider<UserSettingsProvider>(
           create: (context) => UserSettingsProvider(
             repository: context.read<UserSettingsRepository>(),
           ),
+        ),
+        ChangeNotifierProvider<ExchangeRateProvider>(
+          create: (context) {
+            final provider = ExchangeRateProvider(
+              repository: context.read<ExchangeRateRepository>(),
+            );
+            provider.refreshRates();
+            return provider;
+          },
         ),
       ],
       child: MaterialApp(
@@ -107,6 +131,7 @@ class AuthWrapper extends StatelessWidget {
           // Ініціалізація провайдерів після входу
           WidgetsBinding.instance.addPostFrameCallback((_) {
             context.read<FirestoreExpensesProvider>().initializeExpenses();
+            context.read<CategoriesProvider>().initialize();
             context.read<UserSettingsProvider>().initialize();
           });
           

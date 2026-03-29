@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/firestore_expenses_provider.dart';
+import '../providers/user_settings_provider.dart';
+import '../utils/currency_converter.dart';
 import 'expense_detail_screen.dart';
 
 class CategoryExpensesScreen extends StatelessWidget {
@@ -24,8 +26,9 @@ class CategoryExpensesScreen extends StatelessWidget {
         backgroundColor: categoryColor,
         foregroundColor: Colors.white,
       ),
-      body: Consumer<FirestoreExpensesProvider>(
-        builder: (context, provider, child) {
+      body: Consumer2<FirestoreExpensesProvider, UserSettingsProvider>(
+        builder: (context, provider, settingsProvider, child) {
+          final currency = settingsProvider.currency;
           final categoryExpenses = provider.getExpensesByCategory(categoryName);
 
           if (provider.isLoading) {
@@ -130,7 +133,11 @@ class CategoryExpensesScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 5),
                           Text(
-                            '₴${totalAmount.toStringAsFixed(2)}',
+                            CurrencyConverter.formatFromUah(
+                              totalAmount,
+                              currency,
+                              decimalDigits: 2,
+                            ),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 28,
@@ -176,7 +183,7 @@ class CategoryExpensesScreen extends StatelessWidget {
                         ),
                         ...expenses.map((expense) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildExpenseCard(context, expense),
+                          child: _buildExpenseCard(context, expense, currency),
                         )).toList(),
                       ],
                     );
@@ -190,7 +197,7 @@ class CategoryExpensesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildExpenseCard(BuildContext context, dynamic expense) {
+  Widget _buildExpenseCard(BuildContext context, dynamic expense, String currency) {
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -202,6 +209,10 @@ class CategoryExpensesScreen extends StatelessWidget {
               category: expense.category,
               description: expense.description,
               amount: expense.amount,
+              amountUah: expense.amountUah,
+              originalAmount: expense.originalAmount,
+              originalCurrency: expense.originalCurrency,
+              rateUahPerOriginal: expense.rateUahPerOriginal,
               color: expense.color,
               date: expense.date,
             ),
@@ -262,7 +273,7 @@ class CategoryExpensesScreen extends StatelessWidget {
               ),
             ),
             Text(
-              '${expense.amount.toStringAsFixed(0)}₴',
+              CurrencyConverter.formatFromUah(expense.amount as double, currency),
               style: TextStyle(
                 color: categoryColor,
                 fontWeight: FontWeight.bold,

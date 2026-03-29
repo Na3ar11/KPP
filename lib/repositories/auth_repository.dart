@@ -248,6 +248,81 @@ class AuthRepository {
       throw 'Помилка при виході';
     }
   }
+
+  Future<void> updateProfile({
+    required String name,
+    required String email,
+    String? currentPassword,
+    String? newPassword,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw 'Користувач не авторизований';
+    }
+
+    try {
+      final trimmedName = name.trim();
+      final trimmedEmail = email.trim();
+      final trimmedCurrentPassword = currentPassword?.trim() ?? '';
+      final trimmedNewPassword = newPassword?.trim() ?? '';
+
+      final emailChanged = trimmedEmail.isNotEmpty && trimmedEmail != (user.email ?? '');
+      final passwordChanged = trimmedNewPassword.isNotEmpty;
+      final hasPasswordProvider = user.providerData.any(
+        (provider) => provider.providerId == 'password',
+      );
+
+      if (hasPasswordProvider && (emailChanged || passwordChanged)) {
+        if (trimmedCurrentPassword.isEmpty) {
+          throw 'Введіть поточний пароль, щоб змінити email або пароль';
+        }
+
+        final currentEmail = user.email;
+        if (currentEmail == null || currentEmail.isEmpty) {
+          throw 'Не вдалося визначити поточний email';
+        }
+
+        final credential = EmailAuthProvider.credential(
+          email: currentEmail,
+          password: trimmedCurrentPassword,
+        );
+
+        await user.reauthenticateWithCredential(credential);
+      }
+
+      if (trimmedName.isNotEmpty && trimmedName != (user.displayName ?? '')) {
+        await user.updateDisplayName(trimmedName);
+      }
+
+      if (emailChanged) {
+        await user.verifyBeforeUpdateEmail(trimmedEmail);
+      }
+
+      if (passwordChanged) {
+        if (trimmedNewPassword.length < 6) {
+          throw 'Новий пароль має містити мінімум 6 символів';
+        }
+        await user.updatePassword(trimmedNewPassword);
+      }
+
+      await user.reload();
+      await _analytics.logEvent(name: 'profile_updated');
+    } on FirebaseAuthException catch (e) {
+      await FirebaseCrashlytics.instance.recordError(
+        e,
+        StackTrace.current,
+        reason: 'Profile update failed',
+      );
+      throw _handleAuthException(e);
+    } catch (e) {
+      await FirebaseCrashlytics.instance.recordError(
+        e,
+        StackTrace.current,
+        reason: 'Unexpected profile update error',
+      );
+      throw e.toString();
+    }
+  }
   
   /// Скидання пароля
   Future<void> resetPassword({required String email}) async {
@@ -298,6 +373,8 @@ class AuthRepository {
         return 'Домен не авторизований в Firebase Console';
       case 'invalid-credential':
         return 'Невірні дані для входу';
+      case 'requires-recent-login':
+        return 'Потрібно повторно увійти в акаунт для цієї дії';
       default:
         return 'Помилка: ${e.message ?? e.code}';
     }

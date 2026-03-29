@@ -79,10 +79,11 @@ class FirestoreUserSettingsRepository implements UserSettingsRepository {
   @override
   Future<void> updateField(String userId, String field, dynamic value) async {
     try {
-      await _collection.doc(userId).update({
+      await _collection.doc(userId).set({
+        'userId': userId,
         field: value,
         'updatedAt': Timestamp.now(),
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       throw Exception('Помилка оновлення поля $field: $e');
     }

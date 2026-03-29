@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:provider/provider.dart';
 import '../providers/firestore_expenses_provider.dart';
+import '../providers/user_settings_provider.dart';
+import '../utils/currency_converter.dart';
 import 'expense_detail_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
@@ -37,8 +39,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         backgroundColor: const Color(0xFF667EEA),
         foregroundColor: Colors.white,
       ),
-      body: Consumer<FirestoreExpensesProvider>(
-        builder: (context, provider, child) {
+      body: Consumer2<FirestoreExpensesProvider, UserSettingsProvider>(
+        builder: (context, provider, settingsProvider, child) {
+          final currency = settingsProvider.currency;
+
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -122,7 +126,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
                   ...expenses.map((expense) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildExpenseCard(expense),
+                    child: _buildExpenseCard(expense, currency),
                   )).toList(),
                 ],
               );
@@ -133,7 +137,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  Widget _buildExpenseCard(dynamic expense) {
+  Widget _buildExpenseCard(dynamic expense, String currency) {
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -145,6 +149,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               category: expense.category,
               description: expense.description,
               amount: expense.amount,
+              amountUah: expense.amountUah,
+              originalAmount: expense.originalAmount,
+              originalCurrency: expense.originalCurrency,
+              rateUahPerOriginal: expense.rateUahPerOriginal,
               color: expense.color,
               date: expense.date,
             ),
@@ -205,7 +213,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ),
             ),
             Text(
-              '${expense.amount.toStringAsFixed(0)}₴',
+              CurrencyConverter.formatFromUah(expense.amount as double, currency),
               style: const TextStyle(
                 color: Color(0xFFE74C3C),
                 fontWeight: FontWeight.bold,

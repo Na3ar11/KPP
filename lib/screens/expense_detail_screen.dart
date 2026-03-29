@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/expense.dart';
 import '../providers/firestore_expenses_provider.dart';
+import '../providers/user_settings_provider.dart';
+import '../utils/currency_converter.dart';
 import 'add_expense_screen.dart';
 
 class ExpenseDetailScreen extends StatelessWidget {
@@ -10,6 +12,10 @@ class ExpenseDetailScreen extends StatelessWidget {
   final String category;
   final String description;
   final double amount;
+  final double amountUah;
+  final double originalAmount;
+  final String originalCurrency;
+  final double rateUahPerOriginal;
   final Color color;
   final DateTime date;
 
@@ -20,12 +26,23 @@ class ExpenseDetailScreen extends StatelessWidget {
     required this.category,
     required this.description,
     required this.amount,
+    required this.amountUah,
+    required this.originalAmount,
+    required this.originalCurrency,
+    required this.rateUahPerOriginal,
     required this.color,
     required this.date,
   });
 
   @override
   Widget build(BuildContext context) {
+    final currency = context.watch<UserSettingsProvider>().currency;
+    final formattedAmount = CurrencyConverter.formatFromUah(
+      amount,
+      currency,
+      decimalDigits: 2,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -79,7 +96,7 @@ class ExpenseDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        '${amount.toStringAsFixed(2)}₴',
+                        formattedAmount,
                         style: const TextStyle(
                           fontSize: 42,
                           fontWeight: FontWeight.bold,
@@ -128,7 +145,7 @@ class ExpenseDetailScreen extends StatelessWidget {
                 
                 _buildInfoCard(
                   'Сума',
-                  '${amount.toStringAsFixed(2)}₴',
+                  formattedAmount,
                   Icons.attach_money,
                 ),
                 
@@ -149,6 +166,10 @@ class ExpenseDetailScreen extends StatelessWidget {
                             category: category,
                             description: description,
                             amount: amount,
+                            amountUah: amountUah,
+                            originalAmount: originalAmount,
+                            originalCurrency: originalCurrency,
+                            rateUahPerOriginal: rateUahPerOriginal,
                             color: color,
                             date: date,
                           );

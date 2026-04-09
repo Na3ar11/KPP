@@ -7,10 +7,20 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthRepository {
   static final AuthRepository _instance = AuthRepository._internal();
   factory AuthRepository() => _instance;
-  AuthRepository._internal();
-  
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+  AuthRepository._internal({
+    FirebaseAuth? firebaseAuth,
+    FirebaseAnalytics? analytics,
+  }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+       _analytics = analytics ?? FirebaseAnalytics.instance;
+
+  AuthRepository.forTest({
+    required FirebaseAuth firebaseAuth,
+    required FirebaseAnalytics analytics,
+  }) : _firebaseAuth = firebaseAuth,
+       _analytics = analytics;
+
+  final FirebaseAuth _firebaseAuth;
+  final FirebaseAnalytics _analytics;
   
   // Завжди доступний - працює через Firebase Auth Provider!
   bool get isGoogleSignInAvailable => true;

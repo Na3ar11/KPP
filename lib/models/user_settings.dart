@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserSettings {
   final String userId;
-  final double monthlyBudget;
   final String currency;
   final String defaultCategory;
   final bool notificationsEnabled;
@@ -13,7 +12,6 @@ class UserSettings {
 
   UserSettings({
     required this.userId,
-    this.monthlyBudget = 15000.0,
     this.currency = 'UAH',
     this.defaultCategory = 'Їжа',
     this.notificationsEnabled = true,
@@ -27,7 +25,6 @@ class UserSettings {
   // Копіювання з можливістю зміни параметрів аааааааааааааааааfffffffff
   UserSettings copyWith({
     String? userId,
-    double? monthlyBudget,
     String? currency,
     String? defaultCategory,
     bool? notificationsEnabled,
@@ -38,7 +35,6 @@ class UserSettings {
   }) {
     return UserSettings(
       userId: userId ?? this.userId,
-      monthlyBudget: monthlyBudget ?? this.monthlyBudget,
       currency: currency ?? this.currency,
       defaultCategory: defaultCategory ?? this.defaultCategory,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
@@ -67,7 +63,6 @@ class UserSettings {
   Map<String, dynamic> toFirestore() {
     return {
       'userId': userId,
-      'monthlyBudget': monthlyBudget,
       'currency': currency,
       'defaultCategory': defaultCategory,
       'notificationsEnabled': notificationsEnabled,
@@ -89,7 +84,6 @@ class UserSettings {
     
     return UserSettings(
       userId: doc.id,
-      monthlyBudget: (data['monthlyBudget'] as num?)?.toDouble() ?? 15000.0,
       currency: data['currency'] as String? ?? 'UAH',
       defaultCategory: data['defaultCategory'] as String? ?? 'Їжа',
       notificationsEnabled: data['notificationsEnabled'] as bool? ?? true,
@@ -108,7 +102,6 @@ class UserSettings {
   Map<String, dynamic> toJson() {
     return {
       'userId': userId,
-      'monthlyBudget': monthlyBudget,
       'currency': currency,
       'defaultCategory': defaultCategory,
       'notificationsEnabled': notificationsEnabled,

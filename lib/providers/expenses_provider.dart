@@ -168,6 +168,7 @@ class ExpensesProvider extends ChangeNotifier {
 
       expenses.add(Expense(
         id: 'exp_${DateTime.now().millisecondsSinceEpoch}_$i',
+        userId: 'mock_user',
         icon: category['icon'] as String,
         category: categoryName,
         description: categoryDescriptions[random.nextInt(categoryDescriptions.length)],

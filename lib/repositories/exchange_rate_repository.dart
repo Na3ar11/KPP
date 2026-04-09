@@ -9,9 +9,16 @@ class NbuExchangeRateRepository implements ExchangeRateRepository {
   static final Uri _nbuUri =
       Uri.parse('https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json');
 
+  final http.Client _httpClient;
+
+  NbuExchangeRateRepository({http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
+
   @override
   Future<Map<String, double>> fetchUahPerCurrencyRates() async {
-    final response = await http.get(_nbuUri).timeout(const Duration(seconds: 12));
+    final response = await _httpClient
+        .get(_nbuUri)
+        .timeout(const Duration(seconds: 12));
 
     if (response.statusCode != 200) {
       throw Exception('NBU API помилка: HTTP ${response.statusCode}');

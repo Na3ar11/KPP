@@ -88,13 +88,16 @@ class FirestoreExpensesRepository implements ExpensesRepository {
     try {
       final querySnapshot = await _collection
           .where('userId', isEqualTo: userId)
-          .where('category', isEqualTo: category)
           .orderBy('date', descending: true)
           .get();
-      
-      return querySnapshot.docs
+
+      final allExpenses = querySnapshot.docs
           .map((doc) => Expense.fromFirestoreQuery(doc))
           .toList();
+
+      return allExpenses.where((expense) {
+        return expense.category == category || expense.categoryId == category;
+      }).toList();
     } catch (e) {
       throw Exception('Помилка отримання витрат за категорією: $e');
     }

@@ -27,7 +27,6 @@ class UserSettingsProvider extends ChangeNotifier {
   // Зручні геттери для UI
   bool get isDarkMode => _settings?.isDarkMode ?? false;
   String get currency => _settings?.currency ?? 'UAH';
-  double get monthlyBudgetLimit => _settings?.monthlyBudget ?? 15000.0;
   bool get notificationsEnabled => _settings?.notificationsEnabled ?? true;
   String get defaultCategory => _settings?.defaultCategory ?? 'Їжа';
   String get language => _settings?.language ?? 'uk';
@@ -97,16 +96,14 @@ class UserSettingsProvider extends ChangeNotifier {
     }
   }
   
-  /// Змінити місячний бюджет
+  /// Deprecated: глобальний місячний бюджет більше не використовується.
+  /// Джерело істини бюджету - сума бюджетів категорій (CategoriesProvider.totalBudget).
+  @Deprecated('Use CategoriesProvider.totalBudget instead.')
   Future<void> setMonthlyBudgetLimit(double limit) async {
-    if (userId == null) return;
-    
-    try {
-      final repo = _repository as FirestoreUserSettingsRepository;
-      await repo.updateBudget(userId!, limit);
-    } catch (e) {
-      throw Exception('Помилка зміни бюджету: $e');
-    }
+    debugPrint(
+      'setMonthlyBudgetLimit is deprecated. '
+      'Use category budgets via CategoriesProvider.totalBudget.',
+    );
   }
   
   /// Перемикач сповіщень

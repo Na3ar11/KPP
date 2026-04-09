@@ -91,11 +91,6 @@ class FirestoreUserSettingsRepository implements UserSettingsRepository {
   
   /// Додаткові методи для зручності
   
-  /// Оновити бюджет
-  Future<void> updateBudget(String userId, double budget) async {
-    await updateField(userId, 'monthlyBudget', budget);
-  }
-  
   /// Оновити валюту
   Future<void> updateCurrency(String userId, String currency) async {
     await updateField(userId, 'currency', currency);

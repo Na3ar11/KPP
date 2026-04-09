@@ -38,6 +38,14 @@
           }
         },
         {
+          "client_id": "98211696497-tljvhk6mp996e0ftbl5drov0up42v1ah.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tracker_costs",
+            "certificate_hash": "434e111659ac15d333b54e9a5f7cfe06c02bdae7"
+          }
+        },
+        {
           "client_id": "98211696497-br9tspulpbgso5sr3dredgoh8rakctva.apps.googleusercontent.com",
           "client_type": 3
         }
